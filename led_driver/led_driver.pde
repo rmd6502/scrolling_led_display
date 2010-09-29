@@ -245,12 +245,12 @@ void handleNONE(byte b)
   {
     case 'L': case 'l':
       st = Lnum;
-      bufReq = 3;
+     bufReq = 4;
       bufPos = 0;
       break;
     case 'R': case 'r':
       st = Rnum;
-      bufReq = 3;
+     bufReq = 4;
       bufPos = 0;
       break;
     case 'S': case 's':
@@ -269,7 +269,7 @@ void handleNONE(byte b)
     case 'P':case 'p':
       st = Pnum;
       bufPos = 0;
-      bufReq = 3;
+     bufReq = 4;
       break;
     default:
       break;
