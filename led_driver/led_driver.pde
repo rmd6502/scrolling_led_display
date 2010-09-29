@@ -167,11 +167,11 @@ void setup()
   {
     if (i % 6)
     {
-      bitmap[i] = getByte(i/6+33,(i % 6)-1);
+      bitmap[i + MARGIN_SIZE] = getByte(i/6+33,(i % 6)-1);
     }
     else
     {
-      bitmap[i] = 0;
+      bitmap[i + MARGIN_SIZE] = 0;
     }
   }
   
