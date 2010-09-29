@@ -1,0 +1,2 @@
+led_driver is the Arduino sketch for the display
+twitter is the Processing sketch that sends tweets to the display

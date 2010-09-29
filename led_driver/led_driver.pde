@@ -27,6 +27,8 @@ byte index = 0;
 //         increments the cursor by 6 positions per character.  Stops at the end.
 //    Bxx... - Add raw bytes (specified as hex) to the buffer.  Increments the cursor
 //         by one position per byte.  Stops at the end.
+//    Un - scroll up n pixels
+//    Dn - scroll down n pixels
 //
 //////////////////////////////////////////////////////////////////////////////
 enum LedState { NONE, Lnum, Rnum, Pnum, Sstr, Bxx };
