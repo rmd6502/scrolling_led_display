@@ -3,11 +3,12 @@ import processing.serial.*;
 Serial serialPort;
 Twitter myTwitter;
 
-static final int REQUESTDELAY = 0;               // delay between twitter queries after msg scrolls (S)
-static final int NUMRESPONSES = 1;               // just get latest tweet 
-static final int SMALLDELAY = 40;                // delay for small messages (MS)
-static final String SEARCHFOR = "alphaonelabs";  // any tweet containing this string
-static final int MSDELAYCHAR = 9;                // how many MS to delay per char in msg
+static final int REQUESTDELAY = 0;                // delay between twitter queries after msg scrolls (sec)
+static final int NUMRESPONSES = 1;                // just get latest tweet 
+static final int SMALLDELAY = 40;                 // delay for small messages (msec)
+static final int LARGEDELAY = 750;                // delay for large messages (msec)
+static final String SEARCHFOR = "alphaonelabs";   // any tweet containing this string
+static final String ERRMSG = "TWITTER BROKEN!\n"; // display when twitter b0rks
 
 String lastTweet = ""; // use to determine if tweet has changed
 String latestTweet = "";
@@ -52,7 +53,7 @@ void draw() {
     catch (TwitterException te) {
       String errorMsg = "Can't connect to twitter: " + te + "\n";
       print(errorMsg);
-      scroll("TWITTER BROKEN!\n", false);
+      scroll(ERRMSG, false);
     };
     
     delay(REQUESTDELAY * 1000); // secs between queries
@@ -94,9 +95,7 @@ void scroll(String s, Boolean flushLeft) {
   serialPort.write("p" + pos + "\n");
   delay(SMALLDELAY);
   serialPort.write("s" + cleanString + "\n"); 
-  int anum = cleanString.length() * MSDELAYCHAR;
-  println("anum: " + anum);
-  delay(1080);
+  delay(LARGEDELAY);
   
   //delay(cleanString.length()/2 );
  
