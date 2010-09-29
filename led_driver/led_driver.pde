@@ -7,13 +7,13 @@ const int dta = 3;
 const int led7 = 7;
 
 const int VISIBLE_SIZE = 100;
-const int BITMAP_SIZE = 1734;
+const int BITMAP_SIZE = 1026;
 const int MARGIN_SIZE = (BITMAP_SIZE - VISIBLE_SIZE)/2;
 
 const int numChars = BITMAP_SIZE/6;
 
 byte bitmap[BITMAP_SIZE];
-byte index = 0;
+int index = 0;
 
 
 
@@ -162,13 +162,14 @@ void setup()
   digitalWrite(led7, 0);
   DDRB = 0x3F;
   PORTB = 0;
-    Serial.begin(115200);
+  Serial.begin(115200);
 
   memset(bitmap, 0, sizeof(bitmap));
   index = 0;
   
-  for (int i=0; i < BITMAP_SIZE; ++i)
+  for (int i=0; i < VISIBLE_SIZE; ++i)
   {
+    Serial.print("i "); Serial.println(i);
     if (i % 6)
     {
       bitmap[i + MARGIN_SIZE] = getByte(i/6+33,(i % 6)-1);
@@ -178,7 +179,7 @@ void setup()
       bitmap[i + MARGIN_SIZE] = 0;
     }
   }
-  
+  Serial.print("ready: margin size "); Serial.println(MARGIN_SIZE);
 }
 
 void loop()
