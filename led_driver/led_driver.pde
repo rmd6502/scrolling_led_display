@@ -7,7 +7,7 @@ const int dta = 3;
 const int led7 = 7;
 
 const int VISIBLE_SIZE = 100;
-const int BITMAP_SIZE = 1002;
+const int BITMAP_SIZE = 1062;
 const int MARGIN_SIZE = (BITMAP_SIZE - VISIBLE_SIZE)/2;
 
 int margin = MARGIN_SIZE;
@@ -425,11 +425,11 @@ void clearDisplay()
 void shiftLeft()
 {
   int ct = atoi(buf);
-  
   if (ct > BITMAP_SIZE)
   {
     ct = BITMAP_SIZE;
   }
+ 
   memmove(&bitmap[0], &bitmap[ct], BITMAP_SIZE-ct);
   memset(&bitmap[BITMAP_SIZE-ct], 0, ct);
 }
@@ -441,6 +441,7 @@ void shiftRight()
   {
     ct = BITMAP_SIZE;
   }
+  
   memmove(&bitmap[ct], &bitmap[0], BITMAP_SIZE-ct);
   memset(&bitmap[0], 0, ct);
 }
