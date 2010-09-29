@@ -27,11 +27,11 @@ byte index = 0;
 //         increments the cursor by 6 positions per character.  Stops at the end.
 //    Bxx... - Add raw bytes (specified as hex) to the buffer.  Increments the cursor
 //         by one position per byte.  Stops at the end.
-//    Un - scroll up n pixels
-//    Dn - scroll down n pixels
+//    Un - scroll up n pixels destructively
+//    Dn - scroll down n pixels destructively
 //
 //////////////////////////////////////////////////////////////////////////////
-enum LedState { NONE, Lnum, Rnum, Pnum, Sstr, Bxx };
+enum LedState { NONE, Lnum, Rnum, Pnum, Sstr, Bxx, Un, Dn };
 LedState st = NONE;
 char buf[numChars + 2];
 int bufPos;
@@ -41,6 +41,8 @@ void handleNONE(byte b);
 void handleLnum(byte b);
 void handleRnum(byte b);
 void handlePnum(byte b);
+void handleUn(byte b);
+void handleDn(byte b);
 void handleSstr(byte b);
 void handleBxx(byte b);
 void clearDisplay();
@@ -235,6 +237,12 @@ void loop()
       case Bxx:
         handleBxx(b);
         break;
+      case Un:
+	handleUn(b);
+        break;
+      case Dn:
+	handleDn(b);
+        break;
       default:
         break;
     }
@@ -271,7 +279,17 @@ void handleNONE(byte b)
     case 'P':case 'p':
       st = Pnum;
       bufPos = 0;
-     bufReq = 4;
+      bufReq = 4;
+      break; 
+    case 'U':case 'u':
+      st = Un;
+      bufPos = 0;
+      bufReq = 1;
+      break;
+    case 'D':case 'd':
+      st = Dn;
+      bufPos = 0;
+      bufReq = 1;
       break;
     default:
       break;
@@ -363,6 +381,15 @@ void handleBxx(byte b)
     }
   }
 }
+
+void handleUn(byte b)
+{
+}
+
+void handleDn(byte b)
+{
+}
+
 
 void clearDisplay()
 {
