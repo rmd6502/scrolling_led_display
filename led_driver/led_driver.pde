@@ -7,8 +7,10 @@ const int dta = 3;
 const int led7 = 7;
 
 const int VISIBLE_SIZE = 100;
-const int BITMAP_SIZE = 1026;
+const int BITMAP_SIZE = 1002;
 const int MARGIN_SIZE = (BITMAP_SIZE - VISIBLE_SIZE)/2;
+
+int margin = MARGIN_SIZE;
 
 const int numChars = BITMAP_SIZE/6;
 
@@ -31,7 +33,7 @@ int index = 0;
 //    Dn - scroll down n pixels destructively
 //
 //////////////////////////////////////////////////////////////////////////////
-enum LedState { NONE, Lnum, Rnum, Pnum, Sstr, Bxx, Un, Dn };
+enum LedState { NONE, Lnum, Rnum, Pnum, Sstr, Bxx, Un, Dn, Mnum };
 LedState st = NONE;
 char buf[numChars + 2];
 int bufPos;
@@ -172,11 +174,11 @@ void setup()
     Serial.print("i "); Serial.println(i);
     if (i % 6)
     {
-      bitmap[i + MARGIN_SIZE] = getByte(i/6+33,(i % 6)-1);
+      bitmap[i + margin] = getByte(i/6+33,(i % 6)-1);
     }
     else
     {
-      bitmap[i + MARGIN_SIZE] = 0;
+      bitmap[i + margin] = 0;
     }
   }
   Serial.print("ready: margin size "); Serial.println(MARGIN_SIZE);
@@ -184,9 +186,10 @@ void setup()
 
 void loop()
 {
+    
   for (int i = 0; i < VISIBLE_SIZE; ++i)
   {
-    byte b = bitmap[i + MARGIN_SIZE];
+    byte b = bitmap[i + margin];
     
     if (i == 0)
     {
@@ -213,10 +216,10 @@ void loop()
   {
     byte b = Serial.read();
     
-    Serial.print("b "); Serial.print(b);
-    Serial.print(" buf "); Serial.print(buf);
-    Serial.print(" index "); Serial.print((short)index);
-    Serial.print(" st "); Serial.println(st);
+    Serial.print("b ["); Serial.print(b);
+    Serial.print("] buf ["); Serial.print(buf);
+    Serial.print("] index ["); Serial.print((short)index);
+    Serial.print("] st ["); Serial.print(st); Serial.println("]");
     
     switch (st)
     {
@@ -244,6 +247,8 @@ void loop()
       case Dn:
 	handleDn(b);
         break;
+      case Mnum:
+        handleMnum(b);
       default:
         break;
     }
@@ -292,6 +297,10 @@ void handleNONE(byte b)
       bufPos = 0;
       bufReq = 1;
       break;
+    case 'M':case 'm':
+      st = Mnum;
+      bufPos = 0;
+      bufReq = 4;
     default:
       break;
   }
@@ -341,6 +350,22 @@ void handlePnum(byte b)
     handleNONE(b);
   }
 }
+
+void handleMnum(byte b)
+{
+  if (isdigit(b))
+  {
+    buf[bufPos++] = b;
+  }
+  if (!isdigit(b) || bufPos == bufReq)
+  {
+    buf[bufPos] = 0;
+    setMargin();
+    st = NONE;
+    handleNONE(b);
+  }
+}
+
 
 void handleSstr(byte b)
 {
@@ -427,6 +452,17 @@ void setIndex()
   {
     index = BITMAP_SIZE;
   }
+}
+
+void setMargin()
+{
+  margin = atoi(buf);
+  if (margin > BITMAP_SIZE)
+  {
+    margin = BITMAP_SIZE;
+  }
+  Serial.print("new margin size: ");
+  Serial.println(margin);
 }
 
 byte getByte(char c, byte offset)
