@@ -393,9 +393,9 @@ void shiftRight()
 void setIndex()
 {
   index = atoi(buf);
-  if (index > 99)
+  if (index > BITMAP_SIZE)
   {
-    index = 99;
+    index = BITMAP_SIZE;
   }
 }
 
