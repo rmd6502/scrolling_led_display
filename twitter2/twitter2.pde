@@ -23,9 +23,11 @@ void setup() {
 
 void draw() {
 
-  String scrollMsg;
- 
+  String scrollMsg; 
   scrollMsg = fetchLatestTweet(); 
+  //scrollMsg = "XZZZX[[[X\\\\\\X]]]X^^^X___X```X";
+  // zzz [[[ \\\ ^^^ ___ ```
+  
   serialInit();
   scroll(scrollMsg, true);
       
@@ -62,7 +64,7 @@ String fetchLatestTweet() {
       scrollMsg = user + ": " + latestTweet + "\n";   
 
 //      if (! latestTweet.equals(lastTweet))
-//        scrollMsg = "[BREAKING] " + scrollMsg; // indicate a new tweet
+//        scrollMsg = "#-NEW- " + scrollMsg; // indicate a new tweet
 //      
       lastTweet = latestTweet; // keep track
     };
@@ -80,6 +82,7 @@ String fetchLatestTweet() {
 
 void serialInit() {
   
+  delay(500);
   serialPort.clear();
   delay(250);
   serialPort.write("c\n");
@@ -113,8 +116,10 @@ void scroll(String s, Boolean flushLeft) {
   serialPort.write("p" + pos + "\n");
   delay(SMALLDELAY);
   
-  int numSections = ceil((float)cleanString.length()/50);
+  // sadly I can't seem to get consistent success writing without breaking up the 
+  // messages, even with the larger buffer!
   
+  int numSections = ceil((float)cleanString.length()/50);
   for (int i=0; i < numSections; i++) 
   {
     int startPos = i*50;
@@ -122,7 +127,7 @@ void scroll(String s, Boolean flushLeft) {
     if (endPos > cleanString.length())
       endPos = cleanString.length();
       
-    println("numSections: " + numSections + ", startPos: " + startPos + ", endPos: " + endPos);
+    //println("numSections: " + numSections + ", startPos: " + startPos + ", endPos: " + endPos);
     String cleanStringSection = cleanString.substring(startPos, endPos);
     serialPort.write("s" + cleanStringSection + "\n"); 
     delay(LARGEDELAY);   

@@ -7,7 +7,7 @@ const int dta = 3;
 const int led7 = 7;
 
 const int VISIBLE_SIZE = 100;
-const int BITMAP_SIZE = 1062;
+const int BITMAP_SIZE = 1092;
 const int MARGIN_SIZE = (BITMAP_SIZE - VISIBLE_SIZE)/2;
 
 int margin = MARGIN_SIZE;
@@ -467,12 +467,12 @@ void setMargin()
 }
 
 byte getByte(char c, byte offset)
-{
+{ 
   byte b = pgm_read_byte(&charset[c][offset]); 
   byte ret = 0;
   byte bbb = 64, ccc = 1;
   for (byte i=0; i < 7; ++i)
-  {
+  {    
     if (b & bbb)
     {
       ret |= ccc;
