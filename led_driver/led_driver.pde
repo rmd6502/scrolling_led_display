@@ -212,7 +212,7 @@ void loop()
     delayMicroseconds(150);
   }
   
-  if (Serial.available())
+  while (Serial.available())
   {
     byte b = Serial.read();
     
