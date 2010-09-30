@@ -11,6 +11,7 @@ const int BITMAP_SIZE = 1092;
 const int MARGIN_SIZE = (BITMAP_SIZE - VISIBLE_SIZE)/2;
 
 int margin = MARGIN_SIZE;
+enum FlipMode { RIGHTSIDE_UP, UPSIDE_DOWN} flipMode = RIGHTSIDE_UP;
 
 const int numChars = BITMAP_SIZE/6;
 
@@ -31,9 +32,11 @@ int index = 0;
 //         by one position per byte.  Stops at the end.
 //    Un - scroll up n pixels destructively
 //    Dn - scroll down n pixels destructively
+//    Mnum - Set the margin (the first pixel of the visible area) to num
+//    Fn - Flip - 0 = rightside-up, 1 = upside-down
 //
 //////////////////////////////////////////////////////////////////////////////
-enum LedState { NONE, Lnum, Rnum, Pnum, Sstr, Bxx, Un, Dn, Mnum };
+enum LedState { NONE, Lnum, Rnum, Pnum, Sstr, Bxx, Un, Dn, Mnum, Fn };
 LedState st = NONE;
 char buf[numChars + 2];
 int bufPos;
@@ -189,7 +192,16 @@ void loop()
     
   for (int i = 0; i < VISIBLE_SIZE; ++i)
   {
+    int idx = i;
+    if (flipMode == UPSIDE_DOWN)
+    {
+      idx = VISIBLE_SIZE - i;
+    }
     byte b = bitmap[i + margin];
+    if (flipMode == UPSIDE_DOWN)
+    {
+      b = flipByte(b);
+    }
     
     if (i == 0)
     {
@@ -469,6 +481,11 @@ void setMargin()
 byte getByte(char c, byte offset)
 { 
   byte b = pgm_read_byte(&charset[c][offset]); 
+  return flipByte(b);
+}
+
+byte flipByte(byte b)
+{
   byte ret = 0;
   byte bbb = 64, ccc = 1;
   for (byte i=0; i < 7; ++i)
@@ -481,6 +498,4 @@ byte getByte(char c, byte offset)
     ccc <<= 1;
   }
   return ret;
-  //return b;
 }
-  
