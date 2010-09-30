@@ -18,8 +18,6 @@ const int numChars = BITMAP_SIZE/6;
 byte bitmap[BITMAP_SIZE];
 int index = 0;
 
-
-
 //////////////////////////////////////////////////////////////////////////////
 // Commands:
 //    Lnnn - scroll left n pixels
@@ -48,13 +46,16 @@ void handleRnum(byte b);
 void handlePnum(byte b);
 void handleUn(byte b);
 void handleDn(byte b);
+void handleFn(byte b);
 void handleSstr(byte b);
 void handleBxx(byte b);
 void clearDisplay();
 void shiftLeft();
 void shiftRight();
 void setIndex();
+void setFlip();
 byte getByte(char c, byte offset);
+byte flipByte(byte b);
 
 const byte charset[][5] PROGMEM = {
                          0x00, 0x00, 0x00, 0x00, 0x00, // SPACE
@@ -261,6 +262,10 @@ void loop()
         break;
       case Mnum:
         handleMnum(b);
+        break;
+      case Fn:
+        handleFn(b);
+        break;
       default:
         break;
     }
@@ -309,10 +314,16 @@ void handleNONE(byte b)
       bufPos = 0;
       bufReq = 1;
       break;
+    case 'F':case 'f':
+      st = Fn;
+      bufPos = 0;
+      bufReq = 1;
+      break;
     case 'M':case 'm':
       st = Mnum;
       bufPos = 0;
       bufReq = 4;
+      break;
     default:
       break;
   }
@@ -378,6 +389,20 @@ void handleMnum(byte b)
   }
 }
 
+void handleFn(byte b)
+{
+  if (isdigit(b))
+  {
+    buf[bufPos++] = b;
+  }
+  if (!isdigit(b) || bufPos == bufReq)
+  {
+    buf[bufPos] = 0;
+    setFlip();
+    st = NONE;
+    handleNONE(b);
+  }
+}
 
 void handleSstr(byte b)
 {
@@ -476,6 +501,14 @@ void setMargin()
   }
   Serial.print("new margin size: ");
   Serial.println(margin);
+}
+
+void setFlip()
+{
+  byte f = atoi(buf) & 1;
+  flipMode = (FlipMode)f;
+  Serial.print("new flip value: ");
+  Serial.println((short)flipMode);
 }
 
 byte getByte(char c, byte offset)
