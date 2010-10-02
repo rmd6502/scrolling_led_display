@@ -196,9 +196,9 @@ void loop()
     int idx = i;
     if (flipMode == UPSIDE_DOWN)
     {
-      idx = VISIBLE_SIZE - i;
+      idx = VISIBLE_SIZE - i - 5;
     }
-    byte b = bitmap[i + margin];
+    byte b = bitmap[idx + margin];
     if (flipMode == UPSIDE_DOWN)
     {
       b = flipByte(b);
