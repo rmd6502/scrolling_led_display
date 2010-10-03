@@ -116,22 +116,8 @@ void scroll(String s, Boolean flushLeft) {
   serialPort.write("p" + pos + "\n");
   delay(SMALLDELAY);
   
-  // sadly I can't seem to get consistent success writing without breaking up the 
-  // messages, even with the larger buffer!
-  
-  int numSections = ceil((float)cleanString.length()/50);
-  for (int i=0; i < numSections; i++) 
-  {
-    int startPos = i*50;
-    int endPos = startPos + 50;
-    if (endPos > cleanString.length())
-      endPos = cleanString.length();
-      
-    //println("numSections: " + numSections + ", startPos: " + startPos + ", endPos: " + endPos);
-    String cleanStringSection = cleanString.substring(startPos, endPos);
-    serialPort.write("s" + cleanStringSection + "\n"); 
-    delay(LARGEDELAY);   
-  }
+  serialPort.write("s" + cleanString + "\n"); 
+  delay(LARGEDELAY);   
  
   int messageLen = 6*cleanString.length() + 6; // add 1 char 
   
