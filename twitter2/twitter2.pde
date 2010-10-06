@@ -6,25 +6,31 @@ Twitter myTwitter;
 static final int ADVANCEBY = 1;                   // number of cols to advance by per shift
 static final int REQUESTDELAY = 0;                // delay between twitter queries after msg scrolls (sec)
 static final int NUMRESPONSES = 1;                // just get latest tweet 
-static final int SMALLDELAY = 45;                 // delay for small messages (msec)
-static final int LARGEDELAY = 600;               // delay for large messages (msec)
+static final int SMALLDELAY = 25;                 // delay for small messages (msec)
+static final int LARGEDELAY = 200;               // delay for large messages (msec)
 static final String SEARCHFOR = "alphaonelabs";   // any tweet containing this string
 static final String ERRMSG = "TWITTER BROKEN!\n"; // display when twitter b0rks
 
 String lastTweet = ""; // use to determine if tweet has changed
 String latestTweet = "";
 
+TweetFetcher tt;
 
 void setup() {
-  serialPort = new Serial(this, Serial.list()[1], 115200);
-  myTwitter = new Twitter(); // anon access    
+  tt  = new TweetFetcher();
+    myTwitter = new Twitter(); // anon access    
+
+  new Thread(tt).start();
+  serialPort = new Serial(this, Serial.list()[0], 115200);
 };
+
+
 
 
 void draw() {
 
   String scrollMsg; 
-  scrollMsg = fetchLatestTweet(); 
+  scrollMsg = tt.tweet; 
   //scrollMsg = "XZZZX[[[X\\\\\\X]]]X^^^X___X```X";
   // zzz [[[ \\\ ^^^ ___ ```
   
@@ -37,7 +43,6 @@ void draw() {
 
 
 String fetchLatestTweet() {
-  
   String scrollMsg = "";
   
   try {
@@ -45,11 +50,10 @@ String fetchLatestTweet() {
     Query query = new Query(SEARCHFOR);
     query.setRpp(NUMRESPONSES);
     QueryResult result = myTwitter.search(query);
-    
     ArrayList tweets = (ArrayList) result.getTweets();
 
 
-    serialInit(); // clear the screen and set margin
+    //serialInit(); // clear the screen and set margin
 
     for (int i = 0; i < tweets.size(); i++) 
     {                   
@@ -57,7 +61,7 @@ String fetchLatestTweet() {
       String user = t.getFromUser();
       latestTweet = t.getText();
       Date d = t.getCreatedAt();
-      println("Tweet by " + user + " at " + d + ": " + latestTweet);
+      //println("Tweet by " + user + " at " + d + ": " + latestTweet);
       
       //println("lastTweet: " + lastTweet + " latestTweet: " + latestTweet + "\n");
       
@@ -81,23 +85,23 @@ String fetchLatestTweet() {
 
 
 void serialInit() {
-  
-  delay(500);
+  delay(25);
   serialPort.clear();
-  delay(250);
+  delay(25);
   serialPort.write("c\n");
-  delay(100);
+  delay(10);
   serialPort.write("m0\n");
-  delay(100);
+  delay(10);
   serialPort.write("p0\n");
-  delay(100);
+  delay(10);
+  serialPort.write("f1\n");
 }
 
 
 void scroll(String s, Boolean flushLeft) {
   
   int slen = s.length();
-  println("slen: " + slen);
+  //println("slen: " + slen);
   String[] schars = s.split("");
   int pos = 100;
   
@@ -143,5 +147,26 @@ void scroll(String s, Boolean flushLeft) {
     serialPort.write("l" + ADVANCEBY + "\n");
     delay(SMALLDELAY);
   }
+}
 
+class TweetFetcher implements Runnable
+{
+  public String tweet;
+  
+  public TweetFetcher() {
+    tweet = new String("");
+  }
+   public void run() {
+     while (true)
+     {
+       String temp = fetchLatestTweet();
+       synchronized(this) {
+         tweet = temp;
+       }
+       try {
+       Thread.sleep(2000);
+       } catch (Exception e) {
+       }
+     }
+   }
 }

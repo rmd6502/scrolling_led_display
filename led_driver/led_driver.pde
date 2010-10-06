@@ -7,7 +7,7 @@ const int dta = 3;
 const int led7 = 7;
 
 const int VISIBLE_SIZE = 100;
-const int BITMAP_SIZE = 1092;
+const int BITMAP_SIZE = 1280;
 const int MARGIN_SIZE = (BITMAP_SIZE - VISIBLE_SIZE)/2;
 
 int margin = MARGIN_SIZE;
@@ -117,13 +117,14 @@ const byte charset[][5] PROGMEM = {
                          0x41, 0x22, 0x1C, 0x22, 0x41, // X
                          0x07, 0x08, 0x70, 0x08, 0x07, // Y
                          0x61, 0x51, 0x49, 0x45, 0x43, // Z
+                         0x00, 0x00, 0x00, 0x00, 0x00, // place holder
                          0x00, 0x7F, 0x41, 0x00, 0x00, // [
                          0x02, 0x04, 0x08, 0x10, 0x20, // \
                          0x00, 0x00, 0x41, 0x7F, 0x00, // ]
                          0x04, 0x02, 0x01, 0x02, 0x04, // ^
                          0x40, 0x40, 0x40, 0x40, 0x40, // _
                          0x00, 0x01, 0x02, 0x04, 0x00, // `
-                         0x00, 0x00, 0x00, 0x00, 0x00, // place holder
+                         
                          0x20, 0x54, 0x54, 0x54, 0x78, // a
                          0x7F, 0x44, 0x44, 0x44, 0x38, // b
                          0x38, 0x44, 0x44, 0x44, 0x44, // c
@@ -175,7 +176,7 @@ void setup()
   
   for (int i=0; i < VISIBLE_SIZE; ++i)
   {
-    Serial.print("i "); Serial.println(i);
+    //Serial.print("i "); //Serial.println(i);
     if (i % 6)
     {
       bitmap[i + margin] = getByte(i/6+33,(i % 6)-1);
@@ -229,10 +230,10 @@ void loop()
   {
     byte b = Serial.read();
     
-    Serial.print("b ["); Serial.print(b);
-    Serial.print("] buf ["); Serial.print(buf);
-    Serial.print("] index ["); Serial.print((short)index);
-    Serial.print("] st ["); Serial.print(st); Serial.println("]");
+    //Serial.print("b ["); Serial.print(b);
+    //Serial.print("] buf ["); Serial.print(buf);
+    //Serial.print("] index ["); Serial.print((short)index);
+    //Serial.print("] st ["); Serial.print(st); Serial.println("]");
     
     switch (st)
     {
@@ -305,12 +306,12 @@ void handleNONE(byte b)
       bufReq = 4;
       break; 
     case 'U':case 'u':
-      st = Un;
+      //st = Un;
       bufPos = 0;
       bufReq = 1;
       break;
     case 'D':case 'd':
-      st = Dn;
+      //st = Dn;
       bufPos = 0;
       bufReq = 1;
       break;
@@ -406,8 +407,10 @@ void handleFn(byte b)
 
 void handleSstr(byte b)
 {
+  byte c = b;
   if (b >= ' ' && b <= '~')
   {
+    //Serial.print("bufreq "); //Serial.println(bufReq);
     b -= ' ';
     for (int i=0; index < BITMAP_SIZE && i < 5; ++i)
     {
@@ -419,7 +422,7 @@ void handleSstr(byte b)
     }
     --bufReq;
   }
-  if (bufReq == 0 || b == '\r' || b == '\n')
+  if (bufReq == 0 || c == '\r' || c == '\n')
   {
     st = NONE;
   }
@@ -466,7 +469,9 @@ void shiftLeft()
   {
     ct = BITMAP_SIZE;
   }
- 
+  
+  //Serial.print("&bitmap[0]: "); //Serial.println((unsigned long)&bitmap[0]);
+  //Serial.print("Shifting left "); //Serial.print(ct); //Serial.println(" bytes");
   memmove(&bitmap[0], &bitmap[ct], BITMAP_SIZE-ct);
   memset(&bitmap[BITMAP_SIZE-ct], 0, ct);
 }
@@ -499,16 +504,16 @@ void setMargin()
   {
     margin = BITMAP_SIZE;
   }
-  Serial.print("new margin size: ");
-  Serial.println(margin);
+  //Serial.print("new margin size: ");
+  //Serial.println(margin);
 }
 
 void setFlip()
 {
   byte f = atoi(buf) & 1;
   flipMode = (FlipMode)f;
-  Serial.print("new flip value: ");
-  Serial.println((short)flipMode);
+  //Serial.print("new flip value: ");
+  //Serial.println((short)flipMode);
 }
 
 byte getByte(char c, byte offset)
