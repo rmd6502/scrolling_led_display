@@ -1,5 +1,6 @@
 #include <string.h>
 #include <avr/pgmspace.h>
+#include <avr/interrupt.h>
 #include <ctype.h>
 
 const int clk = 2;
@@ -12,6 +13,7 @@ const int MARGIN_SIZE = (BITMAP_SIZE - VISIBLE_SIZE)/2;
 
 int margin = MARGIN_SIZE;
 enum FlipMode { RIGHTSIDE_UP, UPSIDE_DOWN} flipMode = RIGHTSIDE_UP;
+volatile int currentColumn = 0;
 
 const int numChars = BITMAP_SIZE/6;
 
@@ -20,7 +22,7 @@ int index = 0;
 
 //////////////////////////////////////////////////////////////////////////////
 // Commands:
-//    Lnnn - scroll left n pixels
+//    Lnnn[_ttt] - scroll left n pixels with optional delay time between scrolls
 //    Rnnn - scroll right n pixels
 //    Pnnn - set 'cursor' to postition nnn
 //    C - clear display
@@ -34,7 +36,7 @@ int index = 0;
 //    Fn - Flip - 0 = rightside-up, 1 = upside-down
 //
 //////////////////////////////////////////////////////////////////////////////
-enum LedState { NONE, Lnum, Rnum, Pnum, Sstr, Bxx, Un, Dn, Mnum, Fn };
+enum LedState { NONE, Lnum, Rnum, Pnum, Sstr, Bxx, Un, Dn, Mnum, Fn, Lttt };
 LedState st = NONE;
 char buf[numChars + 2];
 int bufPos;
@@ -42,6 +44,7 @@ int bufReq;
 
 void handleNONE(byte b);
 void handleLnum(byte b);
+void handleLttt(byte b);
 void handleRnum(byte b);
 void handlePnum(byte b);
 void handleUn(byte b);
@@ -51,6 +54,8 @@ void handleSstr(byte b);
 void handleBxx(byte b);
 void clearDisplay();
 void shiftLeft();
+void setDelayedLeftShift();
+void setDelayedLeftTime();
 void shiftRight();
 void setIndex();
 void setFlip();
@@ -163,6 +168,8 @@ void setup()
   pinMode(clk, OUTPUT);
   pinMode(dta, OUTPUT);
   pinMode(led7, OUTPUT);
+  pinMode(13, OUTPUT);
+  digitalWrite(13, LOW);
   
   digitalWrite(clk, 0);
   digitalWrite(dta, 0);
@@ -186,54 +193,30 @@ void setup()
       bitmap[i + margin] = 0;
     }
   }
+  
+  // Set up the timer interrupt
+  TCCR2B = 0;
+  OCR2A = 75;
+  TCNT2 = 0;
+  TIFR2 = 7;
+  GTCCR |= (1 << PSRASY);
+  TIMSK2 |= (1 << OCIE2A);
+  TCCR2B = 3;  // clk/32
+
   Serial.print("ready: margin size "); Serial.println(MARGIN_SIZE);
 }
 
 void loop()
-{
-    
-  for (int i = 0; i < VISIBLE_SIZE; ++i)
-  {
-    int idx = i;
-    if (flipMode == UPSIDE_DOWN)
-    {
-      idx = VISIBLE_SIZE - i - 5;
-    }
-    byte b = bitmap[idx + margin];
-    if (flipMode == UPSIDE_DOWN)
-    {
-      b = flipByte(b);
-    }
-    
-    if (i == 0)
-    {
-      digitalWrite(dta, HIGH);
-    }
-    else
-    {
-      digitalWrite(dta, LOW);
-    }
-    
-    PORTB = 0;
-    digitalWrite(led7, LOW);
-    
-    digitalWrite(clk, HIGH);
-    digitalWrite(clk, LOW);
-    
-    PORTB = b & 0x3f;
-    digitalWrite(led7, (b & 0x40) ? HIGH : LOW);
-    
-    delayMicroseconds(150);
-  }
-  
+{ 
   while (Serial.available())
   {
     byte b = Serial.read();
     
-    //Serial.print("b ["); Serial.print(b);
-    //Serial.print("] buf ["); Serial.print(buf);
-    //Serial.print("] index ["); Serial.print((short)index);
-    //Serial.print("] st ["); Serial.print(st); Serial.println("]");
+    Serial.print("b ["); Serial.print(b);
+    Serial.print("] buf ["); Serial.print(buf);
+    Serial.print("] index ["); Serial.print((short)index);
+    Serial.print("] currentColumn ["); Serial.print((short)currentColumn);
+    Serial.print("] st ["); Serial.print(st); Serial.println("]");
     
     switch (st)
     {
@@ -242,6 +225,9 @@ void loop()
         break;
       case Lnum:
         handleLnum(b);
+        break;
+      case Lttt:
+        handleLttt(b);
         break;
       case Rnum:
         handleRnum(b);
@@ -339,7 +325,31 @@ void handleLnum(byte b)
   if (!isdigit(b) || bufPos == bufReq)
   {
     buf[bufPos] = 0;
-    shiftLeft();
+    if (b == '_')
+    {
+    	setDelayedLeftShift();
+	st = Lttt;
+	return;
+    }
+    else
+    {
+    	shiftLeft();
+    	st = NONE;
+    	handleNONE(b);
+    }
+  }
+}
+
+void handleLttt(byte b)
+{
+  if (isdigit(b))
+  {
+    buf[bufPos++] = b;
+  }
+  if (!isdigit(b) || bufPos == bufReq)
+  {
+    buf[bufPos] = 0;
+    setDelayedLeftTime();
     st = NONE;
     handleNONE(b);
   }
@@ -516,6 +526,14 @@ void setFlip()
   //Serial.println((short)flipMode);
 }
 
+void setDelayedLeftShift()
+{
+}
+
+void setDelayedLeftTime()
+{
+}
+
 byte getByte(char c, byte offset)
 { 
   byte b = pgm_read_byte(&charset[c][offset]); 
@@ -536,4 +554,41 @@ byte flipByte(byte b)
     ccc <<= 1;
   }
   return ret;
+}
+
+ISR(TIMER2_COMPA_vect,ISR_NOBLOCK)
+{
+    int idx = currentColumn;
+
+    if (flipMode == UPSIDE_DOWN)
+    {
+      idx = VISIBLE_SIZE - currentColumn - 5;
+    }
+    byte b = bitmap[idx + margin];
+    if (flipMode == UPSIDE_DOWN)
+    {
+      b = flipByte(b);
+    }
+    
+    if (currentColumn == 0)
+    {
+      digitalWrite(dta, HIGH);
+    }
+    else
+    {
+      digitalWrite(dta, LOW);
+    }
+    
+    PORTB = 0;
+    digitalWrite(led7, LOW);
+    
+    digitalWrite(clk, HIGH);
+    digitalWrite(clk, LOW);
+    
+    PORTB = b & 0x3f;
+    digitalWrite(led7, (b & 0x40) ? HIGH : LOW);
+    if (++currentColumn == VISIBLE_SIZE)
+    {
+      currentColumn = 0;
+    }
 }
