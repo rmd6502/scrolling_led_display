@@ -168,8 +168,8 @@ void setup()
   pinMode(clk, OUTPUT);
   pinMode(dta, OUTPUT);
   pinMode(led7, OUTPUT);
-  pinMode(13, OUTPUT);
-  digitalWrite(13, LOW);
+  //pinMode(13, OUTPUT);
+  //digitalWrite(13, LOW);
   
   digitalWrite(clk, 0);
   digitalWrite(dta, 0);
@@ -195,6 +195,7 @@ void setup()
   }
   
   // Set up the timer interrupt
+  TCCR2A = 2;  // WGM 2, top=oc2a, clear timer at top
   TCCR2B = 0;
   OCR2A = 75;
   TCNT2 = 0;
@@ -591,4 +592,6 @@ ISR(TIMER2_COMPA_vect,ISR_NOBLOCK)
     {
       currentColumn = 0;
     }
+    
+    //digitalWrite(13, LOW);
 }
