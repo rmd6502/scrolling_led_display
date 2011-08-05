@@ -1,3 +1,5 @@
+#include <EEPROM.h>
+
 #include <string.h>
 #include <avr/pgmspace.h>
 #include <avr/interrupt.h>
@@ -5,17 +7,23 @@
 
 const int clk = 2;
 const int dta = 3;
-const int led7 = 7;
+const int led1 = 7;
+const int led0 = 6;
 
-const int VISIBLE_SIZE = 100;
-const int BITMAP_SIZE = 1280;
+const int VISIBLE_SIZE = 16;
+const int BITMAP_SIZE = 1024;
 const int MARGIN_SIZE = (BITMAP_SIZE - VISIBLE_SIZE)/2;
+const int MARGIN_SPEED = 75;
 
 int margin = MARGIN_SIZE;
 enum FlipMode { RIGHTSIDE_UP, UPSIDE_DOWN} flipMode = RIGHTSIDE_UP;
 volatile int currentColumn = 0;
 
 const int numChars = BITMAP_SIZE/6;
+
+byte scroll = 0;
+volatile unsigned short marginCount = 0;
+unsigned int dataMin = margin, dataMax = margin;
 
 byte bitmap[BITMAP_SIZE];
 int index = 0;
@@ -167,13 +175,15 @@ void setup()
 {
   pinMode(clk, OUTPUT);
   pinMode(dta, OUTPUT);
-  pinMode(led7, OUTPUT);
+  pinMode(led1, OUTPUT);
+  pinMode(led0, OUTPUT);
   //pinMode(13, OUTPUT);
   //digitalWrite(13, LOW);
   
   digitalWrite(clk, 0);
   digitalWrite(dta, 0);
-  digitalWrite(led7, 0);
+  digitalWrite(led1, 0);
+  digitalWrite(led0, 0);
   DDRB = 0x3F;
   PORTB = 0;
   Serial.begin(115200);
@@ -181,6 +191,7 @@ void setup()
   memset(bitmap, 0, sizeof(bitmap));
   index = 0;
   
+  /*
   for (int i=0; i < VISIBLE_SIZE; ++i)
   {
     //Serial.print("i "); //Serial.println(i);
@@ -193,11 +204,12 @@ void setup()
       bitmap[i + margin] = 0;
     }
   }
+  */
   
   // Set up the timer interrupt
   TCCR2A = 2;  // WGM 2, top=oc2a, clear timer at top
   TCCR2B = 0;
-  OCR2A = 75;
+  OCR2A = 750;
   TCNT2 = 0;
   TIFR2 = 7;
   GTCCR |= (1 << PSRASY);
@@ -205,6 +217,12 @@ void setup()
   TCCR2B = 3;  // clk/32
 
   Serial.print("ready: margin size "); Serial.println(MARGIN_SIZE);
+  
+  for (int a=0; a < BITMAP_SIZE; ++a) {
+    bitmap[a] = EEPROM.read(a);
+  }
+  recalcMinMax();
+  scroll = 1;
 }
 
 void loop()
@@ -278,14 +296,17 @@ void handleNONE(byte b)
       st = Sstr;
       bufReq = numChars - index/6;
       bufPos = 0;
+      recalcMinMax();
       break;
     case 'C': case 'c':
       clearDisplay();
+      recalcMinMax();
       break;
     case 'B': case 'b':
       st = Bxx;
       bufPos = 0;
       bufReq = 2 * (BITMAP_SIZE-bufPos);
+      recalcMinMax();
       break;
     case 'P':case 'p':
       st = Pnum;
@@ -312,9 +333,42 @@ void handleNONE(byte b)
       bufPos = 0;
       bufReq = 4;
       break;
+    case 'K':case 'k':
+      scroll ^= 1;
+      recalcMinMax();
+      break;
+    case 'V':case 'v':
+      for (int a=0; a < BITMAP_SIZE; ++a) {
+        EEPROM.write(a, bitmap[a]);
+      }
+      break;
+    case 'o':case'O':
+      for (int a=0; a < BITMAP_SIZE; ++a) {
+        bitmap[a] = EEPROM.read(a);
+      }
+      recalcMinMax();
+      break;
     default:
       break;
   }
+}
+
+void recalcMinMax()
+{
+  marginCount = 0;
+    dataMin = 0; dataMax = BITMAP_SIZE-1;
+    for (; dataMin < BITMAP_SIZE; ++dataMin) if (bitmap[dataMin]) break;
+    for (; dataMax >= dataMin; --dataMax) if (bitmap[dataMax]) break; 
+    if (dataMax <= dataMin) {
+      scroll = 0;
+    } else {
+      if (dataMin >= VISIBLE_SIZE/2) {
+        dataMin -= VISIBLE_SIZE/2;
+      }
+      margin = dataMin;
+    }
+    Serial.print("dataMin "); Serial.print(dataMin);
+    Serial.print("dataMax "); Serial.println(dataMax);
 }
 
 void handleLnum(byte b)
@@ -445,17 +499,31 @@ void handleBxx(byte b)
   {
     buf[bufPos++] = b;
     --bufReq;
+  } 
+  else
+  {
+    Serial.println("end (non-xdigit)");
+    st = NONE;
+    handleNONE(b);
+    return;
   }
-  if (!isxdigit(b) || bufPos == 2 || bufReq == 0)
+  if (bufPos == 2 || bufReq == 0)
   {
     buf[bufPos] = 0;
     bitmap[index++] = (byte)strtoul(buf, NULL, 16);
-    if (!isxdigit(b) || bufReq == 0)
+    Serial.print("bufreq ");
+    Serial.println((short)bufReq);
+    Serial.print("bitmap[");
+    Serial.print((short)index-1);
+    Serial.print("] = ");
+    Serial.println((short)bitmap[index-1]);
+    if (bufReq == 0)
     {
+      Serial.println("end");
       st = NONE;
-      handleNONE(b);
       return;
     }
+    bufPos = 0;
   }
 }
 
@@ -581,17 +649,27 @@ ISR(TIMER2_COMPA_vect,ISR_NOBLOCK)
     }
     
     PORTB = 0;
-    digitalWrite(led7, LOW);
+    digitalWrite(led1, LOW);
+    digitalWrite(led0, LOW);
     
     digitalWrite(clk, HIGH);
     digitalWrite(clk, LOW);
     
-    PORTB = b & 0x3f;
-    digitalWrite(led7, (b & 0x40) ? HIGH : LOW);
+    PORTB = (b >> 2);
+    digitalWrite(led1, (b & 0x2) ? HIGH : LOW);
+    digitalWrite(led0, (b & 0x1) ? HIGH : LOW);
     if (++currentColumn == VISIBLE_SIZE)
     {
       currentColumn = 0;
     }
+    
+    if (scroll && ++marginCount == MARGIN_SPEED) {
+      marginCount = 0;
+      if (++margin == dataMax) {
+        margin = dataMin;
+      }
+    }
+      
     
     //digitalWrite(13, LOW);
 }
