@@ -13,7 +13,7 @@ const int led0 = 6;
 const int VISIBLE_SIZE = 16;
 const int BITMAP_SIZE = 1024;
 const int MARGIN_SIZE = (BITMAP_SIZE - VISIBLE_SIZE)/2;
-const int MARGIN_SPEED = 75;
+int MARGIN_SPEED = 145;
 
 int margin = MARGIN_SIZE;
 enum FlipMode { RIGHTSIDE_UP, UPSIDE_DOWN} flipMode = RIGHTSIDE_UP;
@@ -42,9 +42,13 @@ int index = 0;
 //    Dn - scroll down n pixels destructively
 //    Mnum - Set the margin (the first pixel of the visible area) to num
 //    Fn - Flip - 0 = rightside-up, 1 = upside-down
+//    Gnnn - set scroll speed
+//    K - toggle scrolling
+//    V - save
+//    O - load
 //
 //////////////////////////////////////////////////////////////////////////////
-enum LedState { NONE, Lnum, Rnum, Pnum, Sstr, Bxx, Un, Dn, Mnum, Fn, Lttt };
+enum LedState { NONE, Lnum, Rnum, Pnum, Sstr, Bxx, Un, Dn, Mnum, Fn, Lttt, Gnum };
 LedState st = NONE;
 char buf[numChars + 2];
 int bufPos;
@@ -55,6 +59,7 @@ void handleLnum(byte b);
 void handleLttt(byte b);
 void handleRnum(byte b);
 void handlePnum(byte b);
+void handleGnum(byte b);
 void handleUn(byte b);
 void handleDn(byte b);
 void handleFn(byte b);
@@ -209,7 +214,7 @@ void setup()
   // Set up the timer interrupt
   TCCR2A = 2;  // WGM 2, top=oc2a, clear timer at top
   TCCR2B = 0;
-  OCR2A = 750;
+  OCR2A = 500;
   TCNT2 = 0;
   TIFR2 = 7;
   GTCCR |= (1 << PSRASY);
@@ -268,6 +273,9 @@ void loop()
         break;
       case Mnum:
         handleMnum(b);
+        break;
+      case Gnum:
+        handleGnum(b);
         break;
       case Fn:
         handleFn(b);
@@ -333,14 +341,21 @@ void handleNONE(byte b)
       bufPos = 0;
       bufReq = 4;
       break;
+    case 'G':case 'g':
+      st = Gnum;
+      bufPos = 0;
+      bufReq = 4;
+      break;
     case 'K':case 'k':
       scroll ^= 1;
       recalcMinMax();
+      Serial.print("scroll "); Serial.println(scroll);
       break;
     case 'V':case 'v':
       for (int a=0; a < BITMAP_SIZE; ++a) {
         EEPROM.write(a, bitmap[a]);
       }
+      Serial.println("Saved...");
       break;
     case 'o':case'O':
       for (int a=0; a < BITMAP_SIZE; ++a) {
@@ -439,6 +454,22 @@ void handlePnum(byte b)
     handleNONE(b);
   }
 }
+
+void handleGnum(byte b)
+{
+  if (isdigit(b))
+  {
+    buf[bufPos++] = b;
+  }
+  if (!isdigit(b) || bufPos == bufReq)
+  {
+    buf[bufPos] = 0;
+    setScrollSpeed();
+    st = NONE;
+    handleNONE(b);
+  }
+}
+
 
 void handleMnum(byte b)
 {
@@ -576,6 +607,12 @@ void setIndex()
   }
 }
 
+void setScrollSpeed()
+{
+  MARGIN_SPEED = atoi(buf);
+  marginCount = 0;
+}
+
 void setMargin()
 {
   margin = atoi(buf);
@@ -627,12 +664,16 @@ byte flipByte(byte b)
 
 ISR(TIMER2_COMPA_vect,ISR_NOBLOCK)
 {
-    int idx = currentColumn;
+    int idx = VISIBLE_SIZE - currentColumn - 1;
 
     if (flipMode == UPSIDE_DOWN)
     {
-      idx = VISIBLE_SIZE - currentColumn - 5;
+      idx = currentColumn + 5;
     }
+    
+    // Convert idx to account for shifter error
+    idx = (idx & (~7)) + (7 - (idx & 7));
+    
     byte b = bitmap[idx + margin];
     if (flipMode == UPSIDE_DOWN)
     {
