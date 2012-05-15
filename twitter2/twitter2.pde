@@ -61,9 +61,9 @@ String fetchLatestTweet() {
       String user = t.getFromUser();
       latestTweet = t.getText();
       Date d = t.getCreatedAt();
-      //println("Tweet by " + user + " at " + d + ": " + latestTweet);
+      println("Tweet by " + user + " at " + d + ": " + latestTweet);
       
-      //println("lastTweet: " + lastTweet + " latestTweet: " + latestTweet + "\n");
+      println("lastTweet: " + lastTweet + " latestTweet: " + latestTweet + "\n");
       
       scrollMsg = user + ": " + latestTweet + "\n";   
 
@@ -101,9 +101,9 @@ void serialInit() {
 void scroll(String s, Boolean flushLeft) {
   
   int slen = s.length();
-  //println("slen: " + slen);
+  println("slen: " + slen);
   String[] schars = s.split("");
-  int pos = 100;
+  int pos = 16;
   
   String cleanString = "";
   for (int i=0; i < schars.length; i++) // skip any non-ascii characters
@@ -123,24 +123,25 @@ void scroll(String s, Boolean flushLeft) {
   // sadly I can't seem to get consistent success writing without breaking up the 
   // messages, even with the larger buffer!
   
-  int numSections = ceil((float)cleanString.length()/50);
+  int numSections = ceil((float)cleanString.length()/8);
   for (int i=0; i < numSections; i++) 
   {
-    int startPos = i*50;
-    int endPos = startPos + 50;
+    int startPos = i*8;
+    int endPos = startPos + 8;
     if (endPos > cleanString.length())
       endPos = cleanString.length();
       
-    //println("numSections: " + numSections + ", startPos: " + startPos + ", endPos: " + endPos);
+    println("numSections: " + numSections + ", startPos: " + startPos + ", endPos: " + endPos);
     String cleanStringSection = cleanString.substring(startPos, endPos);
     serialPort.write("s" + cleanStringSection + "\n"); 
+    println("s" + cleanStringSection + "\n"); 
     delay(LARGEDELAY);   
   }
  
   int messageLen = 6*cleanString.length() + 6; // add 1 char 
   
   if (flushLeft)
-    messageLen += 100; // flush the screen all the way left if desired
+    messageLen += 16; // flush the screen all the way left if desired
   
   for (int i=0; i < messageLen/ADVANCEBY; i++) 
   { // move the chars left one vertical column at a time
@@ -152,12 +153,14 @@ void scroll(String s, Boolean flushLeft) {
 class TweetFetcher implements Runnable
 {
   public String tweet;
+  public boolean stopped;
   
   public TweetFetcher() {
     tweet = new String("");
+    stopped = false;
   }
    public void run() {
-     while (true)
+     while (!stopped)
      {
        String temp = fetchLatestTweet();
        synchronized(this) {
