@@ -10,7 +10,7 @@ const int DEFAULT_SPEED = 75;
 static LedScroller *s_inst = NULL;
 static int s_marginCount = 0;
 
-const uint8_t charset[][5] PROGMEM = {
+static const uint8_t charset[][5] PROGMEM = {
                          {0x00, 0x00, 0x00, 0x00, 0x00}, // SPACE
                          {0x00, 0x00, 0x5F, 0x00, 0x00}, // !
                          {0x00, 0x03, 0x00, 0x03, 0x00}, // "
@@ -134,7 +134,7 @@ LedScroller::LedScroller(int clk, int dta, int numCols, int *ledPins)
   // Set up the timer interrupt
   TCCR2A = 2;  // WGM 2, top=oc2a, clear timer at top
   TCCR2B = 0;
-  OCR2A = 750;
+  OCR2A = 75;
   TCNT2 = 0;
   TIFR2 = 7;
   GTCCR |= (1 << PSRASY);
