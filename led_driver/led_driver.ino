@@ -10,8 +10,8 @@ const int dta = 3;
 const int led1 = 7;
 const int led0 = 6;
 
-const int VISIBLE_SIZE = 16;
-const int BITMAP_SIZE = 1024;
+const int VISIBLE_SIZE = 24;
+const int BITMAP_SIZE = 600;
 const int MARGIN_SIZE = (BITMAP_SIZE - VISIBLE_SIZE)/2;
 int MARGIN_SPEED = 145;
 
@@ -26,7 +26,7 @@ volatile unsigned short marginCount = 0;
 unsigned int dataMin = margin, dataMax = margin;
 
 byte bitmap[BITMAP_SIZE];
-int index = 0;
+unsigned short index = 0;
 
 //////////////////////////////////////////////////////////////////////////////
 // Commands:
@@ -214,20 +214,26 @@ void setup()
   // Set up the timer interrupt
   TCCR2A = 2;  // WGM 2, top=oc2a, clear timer at top
   TCCR2B = 0;
-  OCR2A = 500;
+  OCR2A = 300;
   TCNT2 = 0;
   TIFR2 = 7;
   GTCCR |= (1 << PSRASY);
   TIMSK2 |= (1 << OCIE2A);
   TCCR2B = 3;  // clk/32
-
-  Serial.print("ready: margin size "); Serial.println(MARGIN_SIZE);
   
   for (int a=0; a < BITMAP_SIZE; ++a) {
-    bitmap[a] = EEPROM.read(a);
+    bitmap[a] = EEPROM.read(a+2);
   }
+  MARGIN_SPEED = (EEPROM.read(0) << 8) + EEPROM.read(1);
   recalcMinMax();
-  scroll = 1;
+  
+  Serial.print("ready: margin size "); Serial.print(MARGIN_SIZE);
+  Serial.print(" margin speed ");Serial.print(MARGIN_SPEED);
+  Serial.print(" state ");Serial.println(st);
+  
+  if (MARGIN_SPEED > 0) {
+    scroll = 1;
+  }
 }
 
 void loop()
@@ -235,12 +241,12 @@ void loop()
   while (Serial.available())
   {
     byte b = Serial.read();
-    
-    Serial.print("b ["); Serial.print(b);
-    Serial.print("] buf ["); Serial.print(buf);
-    Serial.print("] index ["); Serial.print((short)index);
-    Serial.print("] currentColumn ["); Serial.print((short)currentColumn);
-    Serial.print("] st ["); Serial.print(st); Serial.println("]");
+    Serial.print((char)b);
+//    Serial.print("b ["); Serial.print(b);
+//    Serial.print("] buf ["); Serial.print(buf);
+//    Serial.print("] index ["); Serial.print((short)index);
+//    Serial.print("] currentColumn ["); Serial.print((short)currentColumn);
+//    Serial.print("] st ["); Serial.print(st); Serial.println("]");
     
     switch (st)
     {
@@ -352,17 +358,40 @@ void handleNONE(byte b)
       Serial.print("scroll "); Serial.println(scroll);
       break;
     case 'V':case 'v':
+      Serial.println("\nSaving...");
       for (int a=0; a < BITMAP_SIZE; ++a) {
-        EEPROM.write(a, bitmap[a]);
+        EEPROM.write(a+2, bitmap[a]);
       }
+      EEPROM.write(0, MARGIN_SPEED >> 8);
+      EEPROM.write(1, MARGIN_SPEED & 0xff);
       Serial.println("Saved...");
       break;
     case 'o':case'O':
       for (int a=0; a < BITMAP_SIZE; ++a) {
-        bitmap[a] = EEPROM.read(a);
+        bitmap[a] = EEPROM.read(a+2);
       }
+      MARGIN_SPEED = EEPROM.read(0) << 8 + EEPROM.read(1);
       recalcMinMax();
       break;
+    case 'h':case 'H':
+        Serial.println("\n Commands:");
+        Serial.println("    Lnnn - scroll left n pixels with optional delay time between scrolls");
+        Serial.println("    Rnnn - scroll right n pixels");
+        Serial.println("    Pnnn - set 'cursor' to postition nnn");
+        Serial.println("    C - clear display");
+        Serial.println("    S... - Draw text '...' starting at cursor position, end command with \\n");
+        Serial.println("         increments the cursor by 6 positions per character.  Stops at the end.");
+        Serial.println("    Bxx... - Add raw bytes (specified as two character hex) to the buffer.  Increments the cursor");
+        Serial.println("         by one position per byte.  Stops at the end.");
+        Serial.println("    Un - scroll up n pixels destructively");
+        Serial.println("    Dn - scroll down n pixels destructively");
+        Serial.println("    Mnum - Set the margin (the first pixel of the visible area) to num");
+        Serial.println("    Fn - Flip - 0 = rightside-up, 1 = upside-down");
+        Serial.println("    Gnnn - set scroll speed");
+        Serial.println("    K - toggle scrolling");
+        Serial.println("    V - save");
+        Serial.println("    O - load");
+        break;
     default:
       break;
   }
@@ -380,10 +409,13 @@ void recalcMinMax()
       if (dataMin >= VISIBLE_SIZE/2) {
         dataMin -= VISIBLE_SIZE/2;
       }
-      margin = dataMin;
+      if (margin < dataMin || margin >= dataMax) {
+        margin = dataMin;
+      }
     }
-    Serial.print("dataMin "); Serial.print(dataMin);
-    Serial.print("dataMax "); Serial.println(dataMax);
+//    Serial.println("recalc: ");
+//    Serial.print("dataMin "); Serial.println(dataMin);
+//    Serial.print(" dataMax "); Serial.println(dataMax);
 }
 
 void handleLnum(byte b)
@@ -517,6 +549,7 @@ void handleSstr(byte b)
       bitmap[index++] = 0;
     }
     --bufReq;
+    recalcMinMax();
   }
   if (bufReq == 0 || c == '\r' || c == '\n')
   {
@@ -533,7 +566,7 @@ void handleBxx(byte b)
   } 
   else
   {
-    Serial.println("end (non-xdigit)");
+//    Serial.println("end (non-xdigit)");
     st = NONE;
     handleNONE(b);
     return;
@@ -542,15 +575,15 @@ void handleBxx(byte b)
   {
     buf[bufPos] = 0;
     bitmap[index++] = (byte)strtoul(buf, NULL, 16);
-    Serial.print("bufreq ");
-    Serial.println((short)bufReq);
-    Serial.print("bitmap[");
-    Serial.print((short)index-1);
-    Serial.print("] = ");
-    Serial.println((short)bitmap[index-1]);
+//    Serial.print("bufreq ");
+//    Serial.println((short)bufReq);
+//    Serial.print("bitmap[");
+//    Serial.print((short)index-1);
+//    Serial.print("] = ");
+//    Serial.println((short)bitmap[index-1]);
     if (bufReq == 0)
     {
-      Serial.println("end");
+//      Serial.println("end");
       st = NONE;
       return;
     }
