@@ -7,8 +7,12 @@
 
 const int clk = 2;
 const int dta = 3;
+#ifdef __AVR_ATmega32U4__
+const int leds[] = {6,7,8,9,10,11,12,13};
+#else
 const int led1 = 7;
 const int led0 = 6;
+#endif
 
 const int VISIBLE_SIZE = 24;
 const int BITMAP_SIZE = 600;
@@ -180,17 +184,24 @@ void setup()
 {
   pinMode(clk, OUTPUT);
   pinMode(dta, OUTPUT);
+#ifdef __AVR_ATmega32U4__
+  for (uint8_t i=0; i < 8; ++i) {
+    pinMode(leds[i], OUTPUT);
+    digitalWrite(leds[i], LOW);
+  }
+#else
   pinMode(led1, OUTPUT);
   pinMode(led0, OUTPUT);
-  //pinMode(13, OUTPUT);
-  //digitalWrite(13, LOW);
-  
-  digitalWrite(clk, 0);
-  digitalWrite(dta, 0);
   digitalWrite(led1, 0);
   digitalWrite(led0, 0);
   DDRB = 0x3F;
   PORTB = 0;
+#endif
+//pinMode(13, OUTPUT);
+  //digitalWrite(13, LOW);
+  
+  digitalWrite(clk, 0);
+  digitalWrite(dta, 0);
   Serial.begin(115200);
 
   memset(bitmap, 0, sizeof(bitmap));
@@ -212,6 +223,16 @@ void setup()
   */
   
   // Set up the timer interrupt
+#ifdef __AVR_ATmega32U4__
+  TCCR3A = 0;
+  TCCR3B = 1 << WGM32;  // WGM mode 4, CTC on OCR3A
+  OCR3A = 100;
+  TCNT3 = 0;
+  TIFR3 = 15;
+  TIMSK3 = _BV(OCIE3A);
+  TCCR3B |= 3;  // clk/64
+  GTCCR |= (1 << PSRASY);
+#else
   TCCR2A = 2;  // WGM 2, top=oc2a, clear timer at top
   TCCR2B = 0;
   OCR2A = 300;
@@ -220,7 +241,8 @@ void setup()
   GTCCR |= (1 << PSRASY);
   TIMSK2 |= (1 << OCIE2A);
   TCCR2B = 3;  // clk/32
-  
+#endif
+
   for (int a=0; a < BITMAP_SIZE; ++a) {
     bitmap[a] = EEPROM.read(a+2);
   }
@@ -695,7 +717,11 @@ byte flipByte(byte b)
   return ret;
 }
 
+#ifdef __AVR_ATmega32U4__
+ISR(TIMER3_COMPA_vect,ISR_NOBLOCK)
+#else
 ISR(TIMER2_COMPA_vect,ISR_NOBLOCK)
+#endif
 {
     int idx = VISIBLE_SIZE - currentColumn - 1;
 
@@ -721,17 +747,32 @@ ISR(TIMER2_COMPA_vect,ISR_NOBLOCK)
     {
       digitalWrite(dta, LOW);
     }
-    
+
+#ifdef __AVR_ATmega32U4__
+  for (uint8_t i=0; i < 8; ++i) {
+    digitalWrite(leds[i], LOW);
+  }
+#else
     PORTB = 0;
     digitalWrite(led1, LOW);
     digitalWrite(led0, LOW);
+#endif
     
     digitalWrite(clk, HIGH);
     digitalWrite(clk, LOW);
-    
+
+#ifdef __AVR_ATmega32U4__
+  PINB = 1;
+  uint8_t i,j;
+  for (j=1, i=0; i < 8; j <<= 1, ++i) {
+    digitalWrite(leds[i], (b & j) ? HIGH : LOW);
+  }
+  PIND = _BV(5);
+#else    
     PORTB = (b >> 2);
     digitalWrite(led1, (b & 0x2) ? HIGH : LOW);
     digitalWrite(led0, (b & 0x1) ? HIGH : LOW);
+#endif
     if (++currentColumn == VISIBLE_SIZE)
     {
       currentColumn = 0;
