@@ -206,22 +206,7 @@ void setup()
 
   memset(bitmap, 0, sizeof(bitmap));
   index = 0;
-  
-  /*
-  for (int i=0; i < VISIBLE_SIZE; ++i)
-  {
-    //Serial.print("i "); //Serial.println(i);
-    if (i % 6)
-    {
-      bitmap[i + margin] = getByte(i/6+33,(i % 6)-1);
-    }
-    else
-    {
-      bitmap[i + margin] = 0;
-    }
-  }
-  */
-  
+    
   // Set up the timer interrupt
 #ifdef __AVR_ATmega32U4__
   TCCR3A = 0;
@@ -399,7 +384,7 @@ void handleNONE(byte b)
         Serial.println("\n Commands:");
         Serial.println("    Lnnn - scroll left n pixels with optional delay time between scrolls");
         Serial.println("    Rnnn - scroll right n pixels");
-        Serial.println("    Pnnn - set 'cursor' to postition nnn");
+        Serial.println("    Pnnn - set 'cursor' to position nnn");
         Serial.println("    C - clear display");
         Serial.println("    S... - Draw text '...' starting at cursor position, end command with \\n");
         Serial.println("         increments the cursor by 6 positions per character.  Stops at the end.");
